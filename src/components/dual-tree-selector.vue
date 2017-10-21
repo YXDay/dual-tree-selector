@@ -2,14 +2,15 @@
     <div class="dual-tree-selector">
         <div class="tree-container source-tree-container">
             <el-tree
+            ref="sourceTree"
             :data="dataUnChosen"
             :props="defaultProps"
             show-checkbox
             node-key="id"
             :expand-on-click-node="false"
             :render-content="renderContentUnChosen"
-            @node-expand="keepExpandStatusConsistent"
-            @node-collapse="keepExpandStatusConsistent">
+            @node-expand="onSourceTreeNodeExpand"
+            @node-collapse="onSourceTreeNodeCollapse">
             </el-tree>
             <div class="edit-total">
                 <span @click="addTotal">全部添加</span>
@@ -17,14 +18,15 @@
         </div>
         <div class="tree-container target-tree-container">
             <el-tree
+            ref="targetTree"
             :data="dataChosen"
             :props="defaultProps"
             show-checkbox
             node-key="id"
             :expand-on-click-node="false"
             :render-content="renderContentChosen"
-            @node-expand="keepExpandStatusConsistent"
-            @node-collapse="keepExpandStatusConsistent">
+            @node-expand="onTargetTreeNodeExpand"
+            @node-collapse="onTargetTreeNodeCollapse">
             </el-tree>
             <div class="edit-total">
                 <span>已选分类数: {{chosenAmount}}/{{totalAmount}}</span>
@@ -34,18 +36,8 @@
     </div>
 </template>
 <script>
-import ElTree from 'element-ui/lib/tree';
-import ElButton from 'element-ui/lib/button';
-
-import 'element-ui/lib/theme-default/tree.css';
-import 'element-ui/lib/theme-default/button.css';
-
+import {Button} from 'element-ui';
 export default {
-    components: {
-        'el-tree': ElTree
-    },
-    mounted() {
-    },
     data() {
         return {
             dataUnChosen: [{
@@ -132,9 +124,9 @@ export default {
                 <span>{node.label}</span>
                 </span>
                 <span style="float: right; margin-right: 20px">
-                <ElButton size="mini" on-click={() => {
+                <Button size="mini" on-click={() => {
                     this.check({node, data, store}, this.choose);
-                }}>+</ElButton>
+                }}>+</Button>
                 </span>
             </span>);
         },
@@ -145,11 +137,14 @@ export default {
                 <span>{node.label}</span>
                 </span>
                 <span style="float: right; margin-right: 20px">
-                <ElButton size="mini" on-click={() => {
+                <Button
+                size="mini"
+                on-click={() => {
                     store.setChecked(data, true);
                     this.unChoose(store);
                     store.remove(data);
-                }}>×</ElButton>
+                }}
+                >×</Button>
                 </span>
             </span>);
         },
@@ -227,8 +222,35 @@ export default {
             }
             return amount;
         },
-        keepExpandStatusConsistent(data, node) {
-            console.log(node);
+        onSourceTreeNodeExpand(data) {
+            this.keepExpandStatusConsistent('targetTree', data, true);
+        },
+        onSourceTreeNodeCollapse(data) {
+            this.keepExpandStatusConsistent('targetTree', data, false);
+        },
+        onTargetTreeNodeExpand(data) {
+            this.keepExpandStatusConsistent('sourceTree', data, true);
+        },
+        onTargetTreeNodeCollapse(data) {
+            this.keepExpandStatusConsistent('sourceTree', data, false);
+        },
+        keepExpandStatusConsistent(target, data, expanded) {
+            this.expandNodeByKey(this.$refs[target].$children, data.id, expanded);
+        },
+        expandNodeByKey(vmArr, key, expanded) {
+            if (!Array.isArray(vmArr)) {
+                return false;
+            }
+            let i = vmArr.length;
+            while (i--) {
+                if (vmArr[i].node && vmArr[i].node.data.id === key) {
+                    vmArr[i].expanded = expanded;
+                    break;
+                }
+                else {
+                    this.expandNodeByKey(vmArr[i].$children, key, expanded);
+                }
+            }
         }
     }
 };
