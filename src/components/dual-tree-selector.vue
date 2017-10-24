@@ -3,12 +3,12 @@
         <div class="tree-container source-tree-container">
             <el-tree
             ref="sourceTree"
-            :data="dataUnChosen"
+            :data="sourceTreeData"
             :props="defaultProps"
             show-checkbox
-            node-key="id"
+            :node-key="key"
             :expand-on-click-node="false"
-            :render-content="renderContentUnChosen"
+            :render-content="renderSourceTreeContent"
             @node-expand="onSourceTreeNodeExpand"
             @node-collapse="onSourceTreeNodeCollapse">
             </el-tree>
@@ -19,12 +19,12 @@
         <div class="tree-container target-tree-container">
             <el-tree
             ref="targetTree"
-            :data="dataChosen"
+            :data="targetTreeData"
             :props="defaultProps"
             show-checkbox
             node-key="id"
             :expand-on-click-node="false"
-            :render-content="renderContentChosen"
+            :render-content="renderTargetTreeContent"
             @node-expand="onTargetTreeNodeExpand"
             @node-collapse="onTargetTreeNodeCollapse">
             </el-tree>
@@ -40,42 +40,53 @@ import {Button} from 'element-ui';
 export default {
     data() {
         return {
-            dataUnChosen: [{
+            sourceTreeData: [{
                 id: '0',
                 label: '一级 1',
+                added: false,
                 children: [{
                     id: '0-0',
                     label: '二级 1-1',
+                    added: false,
                     children: [{
                         id: '0-0-0',
-                        label: '三级 1-1-1'
+                        label: '三级 1-1-1',
+                        added: false
                     }, {
                         id: '0-0-1',
-                        label: '三级 1-1-2'
+                        label: '三级 1-1-2',
+                        added: false
                     }]
                 }]
             }, {
                 id: '1',
                 label: '一级 2',
+                added: false,
                 children: [{
                     id: '1-0',
-                    label: '二级 2-1'
+                    label: '二级 2-1',
+                    added: false
                 }, {
                     id: '1-1',
-                    label: '二级 2-2'
+                    label: '二级 2-2',
+                    added: false
                 }]
             }, {
                 id: '2',
                 label: '一级 3',
+                added: false,
                 children: [{
                     id: '2-0',
-                    label: '二级 3-1'
+                    label: '二级 3-1',
+                    added: false
                 }, {
                     id: '2-1',
-                    label: '二级 3-2'
+                    label: '二级 3-2',
+                    added: false
                 }]
             }],
-            dataChosen: [],
+            targetTreeData: [],
+            key: 'id',
             defaultProps: {
                 children: 'children',
                 label: 'label'
@@ -84,22 +95,45 @@ export default {
     },
     computed: {
         chosenAmount() {
-            return this.getLeavesAmount(this.dataChosen);
+            return this.getLeavesAmount(this.targetTreeData);
         },
         totalAmount() {
-            return this.getLeavesAmount(this.dataUnChosen);
+            return this.getLeavesAmount(this.sourceTreeData);
         }
     },
     methods: {
-        // check,UI层面,choose,数据层面,element的tree只有单向绑定(data->UI)
-        check({node, data, store}, handleFunc) {
+        addNode({node, data, store}) {
             store.setChecked(data, true);
             let parent = node.parent;
             while (parent) {
                 store.setChecked(parent.data, true);
                 parent = parent.parent;
             }
-            handleFunc(store);
+            let checkedDataArr = this.getCheckedDataArr(store);
+            this.mergeData(this.targetTreeData, checkedDataArr);
+            store.setChecked(checkedDataArr[0].id, false, true);
+            this.setAddStatus([data], true);
+        },
+        delNode({node, data, store}) {
+            store.setChecked(data, true);
+            this.delData(this.targetTreeData, this.getCheckedDataArr(store)[0]);
+            console.log(this.getNodeByKey(data[this.key], this.sourceTreeData));
+            this.setAddStatus([this.getNodeByKey(data[this.key], this.sourceTreeData)], false);
+        },
+        getNodeByKey(key, sourceArr) {
+            let result = {};
+            if (!Array.isArray(sourceArr)) {
+                return;
+            }
+            sourceArr.forEach(source => {
+                if (source[this.key] === key) {
+                    result = source;
+                }
+                else {
+                    this.getNodeByKey(key, source.children);
+                }
+            });
+            return result;
         },
         getCheckedDataArr(store) {
             let checkedData = JSON.parse(JSON.stringify(store.getCheckedNodes()));
@@ -109,15 +143,16 @@ export default {
             // 返回一个数组,方便递归
             return [checkedData[0]];
         },
-        choose(store) {
-            let checkedDataArr = this.getCheckedDataArr(store);
-            this.mergeData(this.dataChosen, checkedDataArr);
-            store.setChecked(checkedDataArr[0].id, false, true);
+        setAddStatus(dataArr, added) {
+            if (!Array.isArray(dataArr)) {
+                return;
+            }
+            dataArr.forEach(data => {
+                data.added = added;
+                this.setAddStatus(data.children, added);
+            });
         },
-        unChoose(store) {
-            this.delData(this.dataChosen, this.getCheckedDataArr(store)[0]);
-        },
-        renderContentUnChosen(h, {node, data, store}) {
+        renderSourceTreeContent(h, {node, data, store}) {
             return (
             <span>
                 <span>
@@ -125,12 +160,14 @@ export default {
                 </span>
                 <span style="float: right; margin-right: 20px">
                 <Button size="mini" on-click={() => {
-                    this.check({node, data, store}, this.choose);
-                }}>+</Button>
+                    this.addNode({node, data, store});
+                }}>
+                {data.added ? '✓' : '+'}
+                </Button>
                 </span>
             </span>);
         },
-        renderContentChosen(h, {node, data, store}) {
+        renderTargetTreeContent(h, {node, data, store}) {
             return (
             <span>
                 <span>
@@ -140,9 +177,7 @@ export default {
                 <Button
                 size="mini"
                 on-click={() => {
-                    store.setChecked(data, true);
-                    this.unChoose(store);
-                    store.remove(data);
+                    this.delNode({node, data, store});
                 }}
                 >×</Button>
                 </span>
@@ -194,10 +229,10 @@ export default {
             }
         },
         addTotal() {
-            this.dataChosen = JSON.parse(JSON.stringify(this.dataUnChosen));
+            this.targetTreeData = JSON.parse(JSON.stringify(this.sourceTreeData));
         },
         delTotal() {
-            this.dataChosen = [];
+            this.targetTreeData = [];
         },
 
         /**
@@ -235,7 +270,7 @@ export default {
             this.keepExpandStatusConsistent('sourceTree', data, false);
         },
         keepExpandStatusConsistent(target, data, expanded) {
-            this.expandNodeByKey(this.$refs[target].$children, data.id, expanded);
+            this.expandNodeByKey(this.$refs[target].$children, data[this.key], expanded);
         },
         expandNodeByKey(vmArr, key, expanded) {
             if (!Array.isArray(vmArr)) {
@@ -243,7 +278,7 @@ export default {
             }
             let i = vmArr.length;
             while (i--) {
-                if (vmArr[i].node && vmArr[i].node.data.id === key) {
+                if (vmArr[i].node && vmArr[i].node.data[this.key] === key) {
                     vmArr[i].expanded = expanded;
                     break;
                 }
