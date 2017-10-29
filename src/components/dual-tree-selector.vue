@@ -90,7 +90,10 @@ export default {
             defaultProps: {
                 children: 'children',
                 label: 'label'
-            }
+            },
+
+            // 目标树节点展开状态
+            targetTreeExpandStauts: {}
         };
     },
     computed: {
@@ -113,12 +116,16 @@ export default {
             this.mergeData(this.targetTreeData, checkedDataArr);
             store.setChecked(checkedDataArr[0].id, false, true);
             this.setAddStatus([data], true);
+            this.targetTreeData.sort((prev, next) => prev[this.key] - next[this.key]);
         },
         delNode({node, data, store}) {
+            this.saveTargetTreeExpandStauts(this.$refs.targetTree.$children);
             store.setChecked(data, true);
             this.delData(this.targetTreeData, this.getCheckedDataArr(store)[0]);
-            console.log(this.getNodeByKey(data[this.key], this.sourceTreeData));
             this.setAddStatus([this.getNodeByKey(data[this.key], this.sourceTreeData)], false);
+            this.$nextTick(() => {
+                this.keepTargetTreeExpandStauts(this.$refs.targetTree.$children);
+            });
         },
         getNodeByKey(key, sourceArr) {
             let result = {};
@@ -156,14 +163,20 @@ export default {
             return (
             <span>
                 <span>
-                <span>{node.label}</span>
+                    <span>{node.label}</span>
                 </span>
                 <span style="float: right; margin-right: 20px">
-                <Button size="mini" on-click={() => {
-                    this.addNode({node, data, store});
-                }}>
-                {data.added ? '✓' : '+'}
-                </Button>
+                    <Button size="mini" on-click={() => {
+                        this.addNode({node, data, store});
+                        this.$nextTick(() => {
+                            while (node.parent.parent) {
+                                node = node.parent;
+                                this.keepExpandStatusConsistent('targetTree', node.data, node.expanded);
+                            }
+                        });
+                    }}>
+                        {data.added ? '✓' : '+'}
+                    </Button>
                 </span>
             </span>);
         },
@@ -171,15 +184,15 @@ export default {
             return (
             <span>
                 <span>
-                <span>{node.label}</span>
+                    <span>{node.label}</span>
                 </span>
                 <span style="float: right; margin-right: 20px">
-                <Button
-                size="mini"
-                on-click={() => {
-                    this.delNode({node, data, store});
-                }}
-                >×</Button>
+                    <Button
+                    size="mini"
+                    on-click={() => {
+                        this.delNode({node, data, store});
+                    }}
+                    >×</Button>
                 </span>
             </span>);
         },
@@ -286,6 +299,28 @@ export default {
                     this.expandNodeByKey(vmArr[i].$children, key, expanded);
                 }
             }
+        },
+        saveTargetTreeExpandStauts(vmArr) {
+            if (!Array.isArray(vmArr)) {
+                return false;
+            }
+            vmArr.forEach(vm => {
+                if (vm.expanded) {
+                    this.targetTreeExpandStauts[vm.node.data[this.key]] = vm.expanded;
+                    this.saveTargetTreeExpandStauts(vm.$children);
+                }
+            });
+        },
+        keepTargetTreeExpandStauts(vmArr) {
+            if (!Array.isArray(vmArr)) {
+                return false;
+            }
+            vmArr.forEach(vm => {
+                if (vm.node) {
+                    vm.expanded = this.targetTreeExpandStauts[vm.node.data[this.key]];
+                    this.keepTargetTreeExpandStauts(vm.$children);
+                }
+            });
         }
     }
 };
