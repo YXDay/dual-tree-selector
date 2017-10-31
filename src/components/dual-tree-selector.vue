@@ -122,25 +122,29 @@ export default {
             this.saveTargetTreeExpandStauts(this.$refs.targetTree.$children);
             store.setChecked(data, true);
             this.delData(this.targetTreeData, this.getCheckedDataArr(store)[0]);
-            this.setAddStatus([this.getNodeByKey(data[this.key], this.sourceTreeData)], false);
-            this.$nextTick(() => {
-                this.keepTargetTreeExpandStauts(this.$refs.targetTree.$children);
-            });
+            this.setAddStatus([this.getNodeByKey(this.$refs.sourceTree.root, data[this.key]).data], false);
         },
-        getNodeByKey(key, sourceArr) {
-            let result = {};
-            if (!Array.isArray(sourceArr)) {
-                return;
+
+        /**
+        * 根据key值获取node
+        * 广度优先遍历, 可以传入任意节点.
+        *
+        * @param {Array} root  目标根节点
+        * @param {Array} key 目标key值
+        * @return {Object} node 目标node
+        */
+        getNodeByKey(root, key) {
+            let stack = [root];
+            while (stack.length !== 0) {
+                let node = stack.pop();
+                if (node.key === key) {
+                    return node;
+                }
+                if (node.childNodes) {
+                    stack.push.apply(stack, node.childNodes);
+                }
             }
-            sourceArr.forEach(source => {
-                if (source[this.key] === key) {
-                    result = source;
-                }
-                else {
-                    this.getNodeByKey(key, source.children);
-                }
-            });
-            return result;
+            return {};
         },
         getCheckedDataArr(store) {
             let checkedData = JSON.parse(JSON.stringify(store.getCheckedNodes()));
@@ -169,10 +173,7 @@ export default {
                     <Button size="mini" on-click={() => {
                         this.addNode({node, data, store});
                         this.$nextTick(() => {
-                            while (node.parent.parent) {
-                                node = node.parent;
-                                this.keepExpandStatusConsistent('targetTree', node.data, node.expanded);
-                            }
+                            this.copyExpandedStatus(node);
                         });
                     }}>
                         {data.added ? '✓' : '+'}
@@ -270,35 +271,20 @@ export default {
             }
             return amount;
         },
-        onSourceTreeNodeExpand(data) {
-            this.keepExpandStatusConsistent('targetTree', data, true);
+        onSourceTreeNodeExpand(data, node) {
+            this.keepExpandStatusConsistent('targetTree', node, true);
         },
-        onSourceTreeNodeCollapse(data) {
-            this.keepExpandStatusConsistent('targetTree', data, false);
+        onSourceTreeNodeCollapse(data, node) {
+            this.keepExpandStatusConsistent('targetTree', node, false);
         },
-        onTargetTreeNodeExpand(data) {
-            this.keepExpandStatusConsistent('sourceTree', data, true);
+        onTargetTreeNodeExpand(data, node) {
+            this.keepExpandStatusConsistent('sourceTree', node, true);
         },
-        onTargetTreeNodeCollapse(data) {
-            this.keepExpandStatusConsistent('sourceTree', data, false);
+        onTargetTreeNodeCollapse(data, node) {
+            this.keepExpandStatusConsistent('sourceTree', node, false);
         },
-        keepExpandStatusConsistent(target, data, expanded) {
-            this.expandNodeByKey(this.$refs[target].$children, data[this.key], expanded);
-        },
-        expandNodeByKey(vmArr, key, expanded) {
-            if (!Array.isArray(vmArr)) {
-                return false;
-            }
-            let i = vmArr.length;
-            while (i--) {
-                if (vmArr[i].node && vmArr[i].node.data[this.key] === key) {
-                    vmArr[i].expanded = expanded;
-                    break;
-                }
-                else {
-                    this.expandNodeByKey(vmArr[i].$children, key, expanded);
-                }
-            }
+        keepExpandStatusConsistent(target, node, expanded) {
+            this.getNodeByKey(this.$refs[target].root, node.data[this.key]).expanded = expanded;
         },
         saveTargetTreeExpandStauts(vmArr) {
             if (!Array.isArray(vmArr)) {
@@ -321,6 +307,32 @@ export default {
                     this.keepTargetTreeExpandStauts(vm.$children);
                 }
             });
+        },
+        copyExpandedStatus(node) {
+            let sourceRoot = {};
+            let sourceExpandedStatus = {};
+            let sourceStack = [];
+            let targetStack = [];
+            while (node.parent.parent) {
+                node = node.parent;
+            }
+            sourceRoot = node;
+            sourceStack.push(sourceRoot);
+            while (sourceStack.length !== 0) {
+                let node = sourceStack.pop();
+                sourceExpandedStatus[node.key] = node.expanded;
+                if (node.childNodes) {
+                    sourceStack.push.apply(sourceStack, node.childNodes);
+                }
+            }
+            targetStack.push(this.getNodeByKey(this.$refs.targetTree.root, sourceRoot.key));
+            while (targetStack.length !== 0) {
+                let node = targetStack.pop();
+                node.expanded = sourceExpandedStatus[node.key];
+                if (node.childNodes) {
+                    targetStack.push.apply(targetStack, node.childNodes);
+                }
+            }
         }
     }
 };
