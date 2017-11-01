@@ -171,8 +171,10 @@ export default {
                 </span>
                 <span style="float: right; margin-right: 20px">
                     <Button size="mini" on-click={() => {
+                        this.saveTargetTreeExpandStauts(this.$refs.targetTree.$children);
                         this.addNode({node, data, store});
                         this.$nextTick(() => {
+                            this.keepTargetTreeExpandStauts(this.$refs.targetTree.$children);
                             this.copyExpandedStatus(node);
                         });
                     }}>
@@ -310,6 +312,7 @@ export default {
         },
         copyExpandedStatus(node) {
             let sourceRoot = {};
+            let targetRoot = {};
             let sourceExpandedStatus = {};
             let sourceStack = [];
             let targetStack = [];
@@ -318,6 +321,7 @@ export default {
             }
             sourceRoot = node;
             sourceStack.push(sourceRoot);
+            // 广度优先遍历sourceTree上的目标节点
             while (sourceStack.length !== 0) {
                 let node = sourceStack.pop();
                 sourceExpandedStatus[node.key] = node.expanded;
@@ -325,7 +329,9 @@ export default {
                     sourceStack.push.apply(sourceStack, node.childNodes);
                 }
             }
-            targetStack.push(this.getNodeByKey(this.$refs.targetTree.root, sourceRoot.key));
+            targetRoot = this.getNodeByKey(this.$refs.targetTree.root, sourceRoot.key);
+            targetStack.push(targetRoot);
+            // 广度优先遍历targetTree上的目标节点
             while (targetStack.length !== 0) {
                 let node = targetStack.pop();
                 node.expanded = sourceExpandedStatus[node.key];
