@@ -250,6 +250,11 @@ export default {
         },
         addTotal() {
             this.targetTreeData = JSON.parse(JSON.stringify(this.sourceTreeData));
+            this.$refs.sourceTree.root.childNodes.forEach(childNode => {
+                this.$nextTick(() => {
+                    this.copyExpandedStatus(childNode);
+                });
+            });
         },
         delTotal() {
             this.targetTreeData = [];
@@ -322,7 +327,7 @@ export default {
             let sourceExpandedStatus = {};
             let sourceStack = [];
             let targetStack = [];
-            while (node.parent.parent) {
+            while (node.parent && node.parent.parent) {
                 node = node.parent;
             }
             sourceRoot = node;
