@@ -106,6 +106,7 @@ export default {
     },
     methods: {
         addNode({node, data, store}) {
+            this.saveTargetTreeExpandStauts(this.$refs.targetTree.root);
             store.setChecked(data, true);
             let parent = node.parent;
             while (parent) {
@@ -117,12 +118,20 @@ export default {
             store.setChecked(checkedDataArr[0].id, false, true);
             this.setAddStatus([data], true);
             this.targetTreeData.sort((prev, next) => prev[this.key] - next[this.key]);
+            this.$nextTick(() => {
+                this.keepTargetTreeExpandStauts(this.$refs.targetTree.root);
+                this.copyExpandedStatus(node);
+            });
         },
         delNode({node, data, store}) {
-            this.saveTargetTreeExpandStauts(this.$refs.targetTree.$children);
+            this.saveTargetTreeExpandStauts(this.$refs.targetTree.root);
             store.setChecked(data, true);
             this.delData(this.targetTreeData, this.getCheckedDataArr(store)[0]);
             this.setAddStatus([this.getNodeByKey(this.$refs.sourceTree.root, data[this.key]).data], false);
+            this.$nextTick(() => {
+                this.keepTargetTreeExpandStauts(this.$refs.targetTree.root);
+            });
+
         },
 
         /**
@@ -171,12 +180,7 @@ export default {
                 </span>
                 <span style="float: right; margin-right: 20px">
                     <Button size="mini" on-click={() => {
-                        this.saveTargetTreeExpandStauts(this.$refs.targetTree.$children);
                         this.addNode({node, data, store});
-                        this.$nextTick(() => {
-                            this.keepTargetTreeExpandStauts(this.$refs.targetTree.$children);
-                            this.copyExpandedStatus(node);
-                        });
                     }}>
                         {data.added ? '✓' : '+'}
                     </Button>
@@ -288,27 +292,29 @@ export default {
         keepExpandStatusConsistent(target, node, expanded) {
             this.getNodeByKey(this.$refs[target].root, node.data[this.key]).expanded = expanded;
         },
-        saveTargetTreeExpandStauts(vmArr) {
-            if (!Array.isArray(vmArr)) {
-                return false;
-            }
-            vmArr.forEach(vm => {
-                if (vm.expanded) {
-                    this.targetTreeExpandStauts[vm.node.data[this.key]] = vm.expanded;
-                    this.saveTargetTreeExpandStauts(vm.$children);
+        saveTargetTreeExpandStauts(root) {
+            let stack = [root];
+            while (stack.length !== 0) {
+                let node = stack.pop();
+                if (node.parent) {
+                    this.targetTreeExpandStauts[node.data[this.key]] = node.expanded;
                 }
-            });
+                if (node.childNodes) {
+                    stack.push.apply(stack, node.childNodes);
+                }
+            }
         },
-        keepTargetTreeExpandStauts(vmArr) {
-            if (!Array.isArray(vmArr)) {
-                return false;
-            }
-            vmArr.forEach(vm => {
-                if (vm.node) {
-                    vm.expanded = this.targetTreeExpandStauts[vm.node.data[this.key]];
-                    this.keepTargetTreeExpandStauts(vm.$children);
+        keepTargetTreeExpandStauts(root) {
+            let stack = [root];
+            while (stack.length !== 0) {
+                let node = stack.pop();
+                if (node.parent) {
+                    node.expanded = this.targetTreeExpandStauts[node.data[this.key]];
                 }
-            });
+                if (node.childNodes) {
+                    stack.push.apply(stack, node.childNodes);
+                }
+            }
         },
         copyExpandedStatus(node) {
             let sourceRoot = {};
