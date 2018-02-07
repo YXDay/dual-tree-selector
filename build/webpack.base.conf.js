@@ -40,7 +40,6 @@ module.exports = {
             },
             {test: /\.styl$/, loader: 'stylus-loader'},
             {test: /\.css$/, loader: 'style-loader!css-loader', exclude: /node_modules/},
-            {test: /\.less$/, loader: 'style-loader!css-loader!less-loader', exclude: /node_modules/},
             {
                 test: /\.(png|jpe?g|gif|svg)(\?.*)?$/,
                 loader: 'url-loader',
@@ -63,6 +62,15 @@ module.exports = {
                 options: {
                     limit: 10000,
                     name: utils.assetsPath('fonts/[name].[hash:7].[ext]')
+                }
+            },
+            {
+                test: /\.(html)$/,
+                use: {
+                    loader: 'html-loader',
+                    options: {
+                        attrs: [':data-src']
+                    }
                 }
             }
         ]

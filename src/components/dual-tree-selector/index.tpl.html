@@ -1,0 +1,19 @@
+<div class="dual-tree-selector">
+    <div class="tree-container source-tree-container">
+        <el-tree ref="sourceTree" :data="sourceTreeData" :props="defaultProps" show-checkbox node-key="id" :expand-on-click-node="false"
+            :render-content="renderSourceTreeContent" @node-expand="onSourceTreeNodeExpand" @node-collapse="onSourceTreeNodeCollapse">
+        </el-tree>
+        <div class="edit-total">
+            <span @click="addTotal">全部添加</span>
+        </div>
+    </div>
+    <div class="tree-container target-tree-container">
+        <el-tree ref="targetTree" :data="targetTreeData" :props="defaultProps" show-checkbox node-key="id" :expand-on-click-node="false"
+            :render-content="renderTargetTreeContent" @node-expand="onTargetTreeNodeExpand" @node-collapse="onTargetTreeNodeCollapse">
+        </el-tree>
+        <div class="edit-total">
+            <span>已选分类数: {{chosenAmount}}/{{totalAmount}}</span>
+            <span @click="delTotal">全部删除</span>
+        </div>
+    </div>
+</div>
